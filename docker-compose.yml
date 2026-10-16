@@ -96,7 +96,27 @@ services:
       - ./plugins:/opt/airflow/plugins
     command: scheduler
 
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase-bi
+    depends_on:
+      olap-postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - metabase-data:/metabase.db
+    environment:
+      MB_DB_TYPE: h2
+      MB_DB_FILE: /metabase.db/metabase.db
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
 volumes:
   oltp-data:
   olap-data:
   airflow-meta-data:
+  metabase-data:
