@@ -1,0 +1,102 @@
+services:
+  oltp-postgres:
+    image: postgres:16
+    container_name: oltp-postgres
+    environment:
+      POSTGRES_DB: oltp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - oltp-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d oltp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  olap-postgres:
+    image: postgres:16
+    container_name: olap-postgres
+    environment:
+      POSTGRES_DB: olap
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - olap-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d olap"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-meta:
+    image: postgres:16
+    container_name: airflow-meta
+    environment:
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+    volumes:
+      - airflow-meta-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  airflow-webserver:
+    image: apache/airflow:2.9.1
+    container_name: airflow-webserver
+    depends_on:
+      postgres-meta:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-meta:5432/airflow
+      AIRFLOW__CORE__FERNET_KEY: "g6NNeGpWAExqSsZrleZ9A2iA8Y446DnWCJdzk31Exfg="
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__SECRET_KEY: "changeme-secret-key"
+      AIRFLOW_CONN_OLTP_DEFAULT: postgres://postgres:postgres@oltp-postgres:5432/oltp
+      AIRFLOW_CONN_OLAP_DEFAULT: postgres://postgres:postgres@olap-postgres:5432/olap
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    command: webserver
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.1
+    container_name: airflow-scheduler
+    depends_on:
+      postgres-meta:
+        condition: service_healthy
+      airflow-webserver:
+        condition: service_started
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-meta:5432/airflow
+      AIRFLOW__CORE__FERNET_KEY: "g6NNeGpWAExqSsZrleZ9A2iA8Y446DnWCJdzk31Exfg="
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW_CONN_OLTP_DEFAULT: postgres://postgres:postgres@oltp-postgres:5432/oltp
+      AIRFLOW_CONN_OLAP_DEFAULT: postgres://postgres:postgres@olap-postgres:5432/olap
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    command: scheduler
+
+volumes:
+  oltp-data:
+  olap-data:
+  airflow-meta-data:
