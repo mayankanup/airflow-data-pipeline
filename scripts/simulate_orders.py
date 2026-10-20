@@ -25,6 +25,6 @@ if __name__ == "__main__":
     p.add_argument("--date", default=str(date.today()), help="YYYY-MM-DD")
     p.add_argument("--count", type=int, default=20)
     p.add_argument("--seed", type=int, default=None)
-    p.add_argument("--dsn", default=os.getenv("OLTP_DSN", "dbname=oltp user=postgres password=postgres host=localhost"))
+    p.add_argument("--dsn", default=os.getenv("OLTP_DSN", "dbname=oltp user=postgres password=postgres host=localhost port=5433"))
     a = p.parse_args()
     simulate(a.dsn, a.date, a.count, a.seed)

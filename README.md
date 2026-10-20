@@ -2,6 +2,12 @@
 
 Proves daily data transfer from OLTP (ecommerce `orders`) to OLAP (`daily_sales_summary`) with Airflow. Scope: `specs/mission.md`. Stack: `specs/tech-stack.md` (Postgres 16 → Postgres 16 + Airflow 2.9 Docker).
 
+## Architecture
+
+![Architecture](docs/architecture.svg)
+
+OLTP `orders` → Airflow batch ELT (`extract` → `load`, idempotent upsert) → OLAP `daily_sales_summary` → Metabase BI. SQL report + OLTP oracle live in `sql/`.
+
 ## Quickstart
 
 ```powershell
